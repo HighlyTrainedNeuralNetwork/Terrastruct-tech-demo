@@ -1,6 +1,6 @@
 from components import Game
 
-game_instance = Game(5)
+game_instance = Game(3)
 game_instance.add_players()
 game_instance.deal_hands()
 

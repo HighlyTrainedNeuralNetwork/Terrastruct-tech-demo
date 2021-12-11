@@ -64,8 +64,8 @@ class Deck:
     def __init__(self):
         self.deck = []
         for i in range(1, 5):
-            for z in range(1, 15):
-                self.deck.append(z)
+            for y in range(1, 15):
+                self.deck.append(y)
         np.random.shuffle(self.deck)
 
 class Player:
