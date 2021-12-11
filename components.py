@@ -6,6 +6,7 @@ class Game:
         self.stack = {}
         self.num_players = num_players
         self.deck = Deck()
+        self.active_fight = True
 
     def add_players(self):
         for i in range(self.num_players):
@@ -24,29 +25,24 @@ class Game:
     def execute_turn(self, considered_players):
         for player in considered_players:
             if player.name in self.stack.keys():
-                if player.strategy == "random":
-                    self.stack[player.name].append(player.play_random())
-                elif player.strategy == "highest":
-                    self.stack[player.name].append(player.play_highest())
+                self.stack[player.name].append(player.identify_strategy())
             else:
-                if player.strategy == "random":
-                    self.stack[player.name] = [player.play_random()]
-                elif player.strategy == "highest":
-                    self.stack[player.name] = [player.play_highest()]
+                self.stack[player.name] = [player.identify_strategy()]
             print("Player {} played card {} from {}.".format(player.name, self.stack[player.name][-1], player.hold_pile + [self.stack[player.name][-1]]))
         latest_cards = [values[-1] for player, values in self.stack.items() if player in [player.name for player in considered_players]]
-        stdout = ""
-        for player in considered_players:
-            stdout += "Player {} now has {} cards left.".format(player.name, len(player.draw_pile) + len(player.hold_pile) + len(player.win_pile))
-            player.attempt_draw()
-        print(stdout)
         if latest_cards.count(max(latest_cards)) == 1:
             winner = considered_players[latest_cards.index(max(latest_cards))].name
             print("Player {} won the battle.".format(winner))
             self.players[winner - 1].win_pile.extend(sum(self.stack.values(), []))
             self.stack = {}
-        else:
-            considered_players = [player for iteration, player in enumerate(considered_players) if latest_cards[iteration] == max(latest_cards)]
+        stdout = ""
+        for player in considered_players:
+            stdout += "Player {} now has {} cards left.".format(player.name, len(player.draw_pile) + len(player.hold_pile) + len(player.win_pile))
+            player.attempt_draw()
+        print(stdout)
+        if self.stack:
+            self.check_state()
+            considered_players = [player for iteration, player in enumerate(considered_players) if latest_cards[iteration] == max(latest_cards) and not player.eliminated]
             self.execute_turn(considered_players)
 
     def check_state(self):
@@ -87,8 +83,13 @@ class Player:
             self.hold_pile.append(self.draw_pile.pop())
         elif len(self.win_pile) > 0:
             self.shuffle()
-            print("Player {} shuffled their deck.".format(self.name))
             self.hold_pile.append(self.draw_pile.pop())
+
+    def identify_strategy(self):
+        if self.strategy == "random":
+            return self.play_random()
+        elif self.strategy == "highest":
+            return self.play_highest()
 
     def play_random(self):
         np.random.shuffle(self.hold_pile)
