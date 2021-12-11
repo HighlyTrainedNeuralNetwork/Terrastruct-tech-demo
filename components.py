@@ -2,7 +2,6 @@ import numpy as np
 
 class Game:
     def __init__(self, num_players):
-        self.previous_winner = None
         self.players = []
         self.stack = {}
         self.num_players = num_players
@@ -22,40 +21,49 @@ class Game:
             for i in range(5):
                 player.hold_pile.append(player.draw_pile.pop())
 
-    def execute_turn(self):
-        stack = []
-        for player in self.players:
-            if player.strategy == "random":
-                stack.append(player.play_random())
-            elif player.strategy == "highest":
-                stack.append(player.play_highest())
-            print("Player {} played card {} from {}.".format(player.name, stack[-1], player.hold_pile))
-        if stack.count(max(stack)) == 1:
-            winner = stack.index(max(stack))
-        elif self.previous_winner:
-            winner = self.previous_winner
-        else:
-            winner = np.random.randint(0, len(self.players))
-        self.players[winner].win_pile.extend(stack)
-        self.previous_winner = winner
-        self.stack = []
-        stdout = "Player {} won the battle.".format(winner + 1)
-        for player in self.players:
+    def execute_turn(self, considered_players):
+        for player in considered_players:
+            if player.name in self.stack.keys():
+                if player.strategy == "random":
+                    self.stack[player.name].append(player.play_random())
+                elif player.strategy == "highest":
+                    self.stack[player.name].append(player.play_highest())
+            else:
+                if player.strategy == "random":
+                    self.stack[player.name] = [player.play_random()]
+                elif player.strategy == "highest":
+                    self.stack[player.name] = [player.play_highest()]
+            print("Player {} played card {} from {}.".format(player.name, self.stack[player.name][-1], player.hold_pile + [self.stack[player.name][-1]]))
+        latest_cards = [values[-1] for player, values in self.stack.items() if player in [player.name for player in considered_players]]
+        stdout = ""
+        for player in considered_players:
+            stdout += "Player {} now has {} cards left.".format(player.name, len(player.draw_pile) + len(player.hold_pile) + len(player.win_pile))
             player.attempt_draw()
-            stdout += " Player {} now has {} cards left.".format(player.name, len(player.draw_pile) + len(player.hold_pile) + len(player.win_pile))
         print(stdout)
+        if latest_cards.count(max(latest_cards)) == 1:
+            winner = considered_players[latest_cards.index(max(latest_cards))].name
+            print("Player {} won the battle.".format(winner))
+            self.players[winner - 1].win_pile.extend(sum(self.stack.values(), []))
+            self.stack = {}
+        else:
+            considered_players = [player for iteration, player in enumerate(considered_players) if latest_cards[iteration] == max(latest_cards)]
+            self.execute_turn(considered_players)
 
     def check_state(self):
-        if any(len(player.draw_pile) == 0 and len(player.hold_pile) == 0 and len(player.win_pile) == 0 for player in self.players):
-            winner = max(self.players, key=lambda x: len(x.hold_pile) + len(x.draw_pile) + len(x.win_pile)).name
-            print("Player {} won the game!".format(winner))
+        for player in [player for player in self.players if not player.eliminated]:
+            if len(player.draw_pile) == 0 and len(player.hold_pile) == 0 and len(player.win_pile) == 0:
+                print("Player {} was eliminated.".format(player.name))
+                player.eliminated = True
+        if [player.eliminated for player in self.players].count(False) == 1:
+            winner = next(player for player in self.players if not player.eliminated).name
+            print("Player {} wins!".format(winner))
             return False
         return True
 
 class Deck:
     def __init__(self):
         self.deck = []
-        for i in range(1, 2):
+        for i in range(1, 5):
             for z in range(1, 15):
                 self.deck.append(z)
         np.random.shuffle(self.deck)
@@ -67,6 +75,7 @@ class Player:
         self.hold_pile = []
         self.win_pile = []
         self.strategy = strategy
+        self.eliminated = False
 
     def shuffle(self):
         self.draw_pile = self.win_pile
@@ -78,7 +87,7 @@ class Player:
             self.hold_pile.append(self.draw_pile.pop())
         elif len(self.win_pile) > 0:
             self.shuffle()
-            print("Player {} shuffled their deck".format(self.name))
+            print("Player {} shuffled their deck.".format(self.name))
             self.hold_pile.append(self.draw_pile.pop())
 
     def play_random(self):
