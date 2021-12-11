@@ -6,5 +6,5 @@ game_instance.deal_hands()
 
 game_active = True
 while game_active:
-    game_instance.comparison()
+    game_instance.execute_turn()
     game_active = game_instance.check_state()
